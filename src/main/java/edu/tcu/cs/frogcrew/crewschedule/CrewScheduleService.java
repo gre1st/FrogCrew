@@ -71,7 +71,8 @@ public class CrewScheduleService {
 
             crewedUser.setUser(user);
             crewedUser.setPosition(position);
-            updatedCrewedUsers.add(crewedUser);
+            CrewedUser saved = this.crewedUserRepository.save(crewedUser);
+            updatedCrewedUsers.add(saved);
         }
 
         return this.crewedUserRepository.saveAll(updatedCrewedUsers);

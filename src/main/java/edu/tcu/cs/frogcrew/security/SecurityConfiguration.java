@@ -122,6 +122,7 @@ public class SecurityConfiguration {
                 )
                 .headers(headers -> headers.frameOptions(Customizer.withDefaults()).disable())
                 .csrf(csrf -> csrf.disable())
+                .cors(Customizer.withDefaults())
                 .httpBasic(httpBasic -> httpBasic.authenticationEntryPoint(this.customBasicAuthenticationEntryPoint))
                 .oauth2ResourceServer(oauth2ResourceServer -> oauth2ResourceServer.jwt(Customizer.withDefaults())
                         .authenticationEntryPoint(this.customBearerTokenAuthenticationEntryPoint)
