@@ -9,6 +9,6 @@ import java.util.Optional;
 @Repository
 public interface FrogCrewUserRepository extends JpaRepository<FrogCrewUser, Integer> {
     List<FrogCrewUser> findFrogCrewUsersByQualifiedPositionsContaining(String position);
-    Optional<FrogCrewUser> findByUsername(String username);
+    Optional<FrogCrewUser> findByEmail(String email);
 
 }

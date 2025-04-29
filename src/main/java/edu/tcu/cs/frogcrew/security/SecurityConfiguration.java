@@ -1,21 +1,60 @@
 package edu.tcu.cs.frogcrew.security;
 
+import com.nimbusds.jose.jwk.JWK;
+import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
+import com.nimbusds.jose.jwk.source.JWKSource;
+import com.nimbusds.jose.proc.SecurityContext;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 
 @Configuration
 public class SecurityConfiguration {
 
+    private final RSAPublicKey publicKey;
+    private final RSAPrivateKey privateKey;
+
     @Value("${api.endpoint.base-url}")
     private String baseUrl;
+
+    private final CustomBasicAuthenticationEntryPoint customBasicAuthenticationEntryPoint;
+    private final CustomBearerTokenAuthenticationEntryPoint customBearerTokenAuthenticationEntryPoint;
+    private final CustomBearerTokenAccessDeniedHandler customBearerTokenAccessDeniedHandler;
+
+    public SecurityConfiguration(CustomBasicAuthenticationEntryPoint customBasicAuthenticationEntryPoint, CustomBearerTokenAuthenticationEntryPoint customBearerTokenAuthenticationEntryPoint, CustomBearerTokenAccessDeniedHandler customBearerTokenAccessDeniedHandler) throws NoSuchAlgorithmException {
+        this.customBasicAuthenticationEntryPoint = customBasicAuthenticationEntryPoint;
+        this.customBearerTokenAuthenticationEntryPoint = customBearerTokenAuthenticationEntryPoint;
+        this.customBearerTokenAccessDeniedHandler = customBearerTokenAccessDeniedHandler;
+
+        // Generate a public/private key pair.
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+        keyPairGenerator.initialize(2048); // generated key size = 2048 bits
+        KeyPair keyPair = keyPairGenerator.generateKeyPair();
+        this.publicKey = (RSAPublicKey) keyPair.getPublic();
+        this.privateKey = (RSAPrivateKey) keyPair.getPrivate();
+    }
 
     /* URL Path Authorization
     /crewMember/**                      ROLE_CREW_MEMBER, ROLE_ADMIN
@@ -33,20 +72,20 @@ public class SecurityConfiguration {
         return http
                 .authorizeHttpRequests(authorizeHttpRequests -> authorizeHttpRequests
                         // Crew Member Endpoints
-                        .requestMatchers(HttpMethod.GET, this.baseUrl + "/crewMember/{userId}").hasAuthority("ROLE_CREW") // Use Case 3
-                        .requestMatchers(HttpMethod.POST, this.baseUrl + "/crewMember").hasAuthority("ROLE_CREW") // Use Case 1
-                        .requestMatchers(HttpMethod.PUT, this.baseUrl + "/crewMember/{userId}").hasAuthority("ROLE_CREW") // Use Case 2, 19
-                        .requestMatchers(HttpMethod.GET, this.baseUrl + "/crewMember/{userId}/schedule/{scheduleId}").hasAuthority("ROLE_CREW") // Use Case 4
-                        .requestMatchers(HttpMethod.GET, this.baseUrl + "/crewSchedule/{gameId}").hasAuthority("ROLE_CREW") // Use Case 5
-                        .requestMatchers(HttpMethod.GET, this.baseUrl + "/crewList/{gameId}").hasAuthority("ROLE_CREW") // Use Case 6
-                        .requestMatchers(HttpMethod.POST, this.baseUrl + "/availability").hasAuthority("ROLE_CREW") // Use Case 7
-                        .requestMatchers(HttpMethod.PUT, this.baseUrl + "/availability").hasAuthority("ROLE_CREW") // Use Case 8
-                        .requestMatchers(HttpMethod.PUT, this.baseUrl + "/scheduledGames/pickup/{tradeId}/{userId}").hasAuthority("ROLE_CREW") // Use Case 9
-                        .requestMatchers(HttpMethod.PUT, this.baseUrl + "/scheduledGames/approve/{tradeId}").hasAuthority("ROLE_CREW") // Use Case 10
-                        .requestMatchers(HttpMethod.PUT, this.baseUrl + "/scheduledGames/deny/{tradeId}").hasAuthority("ROLE_CREW") // Use Case 10
-                        .requestMatchers(HttpMethod.GET, this.baseUrl + "/notifications/{userId}").hasAuthority("ROLE_CREW") // Use Case 12
-                        .requestMatchers(HttpMethod.DELETE, this.baseUrl + "/notifications/{notificationId}").hasAuthority("ROLE_CREW") // Use Case 13
-                        .requestMatchers(HttpMethod.GET, this.baseUrl + "/scheduledGames/get/{userId}").hasAuthority("ROLE_CREW") // Use Case 4
+                        .requestMatchers(HttpMethod.GET, this.baseUrl + "/crewMember/{userId}").hasAnyAuthority("ROLE_CREW", "ROLE_ADMIN") // Use Case 3
+                        .requestMatchers(HttpMethod.POST, this.baseUrl + "/crewMember").hasAnyAuthority("ROLE_CREW", "ROLE_ADMIN") // Use Case 1
+                        .requestMatchers(HttpMethod.PUT, this.baseUrl + "/crewMember/{userId}").hasAnyAuthority("ROLE_CREW", "ROLE_ADMIN") // Use Case 2, 19
+                        .requestMatchers(HttpMethod.GET, this.baseUrl + "/crewMember/{userId}/schedule/{scheduleId}").hasAnyAuthority("ROLE_CREW", "ROLE_ADMIN") // Use Case 4
+                        .requestMatchers(HttpMethod.GET, this.baseUrl + "/crewSchedule/{gameId}").hasAnyAuthority("ROLE_CREW", "ROLE_ADMIN") // Use Case 5
+                        .requestMatchers(HttpMethod.GET, this.baseUrl + "/crewList/{gameId}").hasAnyAuthority("ROLE_CREW", "ROLE_ADMIN") // Use Case 6
+                        .requestMatchers(HttpMethod.POST, this.baseUrl + "/availability").hasAnyAuthority("ROLE_CREW", "ROLE_ADMIN") // Use Case 7
+                        .requestMatchers(HttpMethod.PUT, this.baseUrl + "/availability").hasAnyAuthority("ROLE_CREW", "ROLE_ADMIN") // Use Case 8
+                        .requestMatchers(HttpMethod.PUT, this.baseUrl + "/scheduledGames/pickup/{tradeId}/{userId}").hasAnyAuthority("ROLE_CREW", "ROLE_ADMIN") // Use Case 9
+                        .requestMatchers(HttpMethod.PUT, this.baseUrl + "/scheduledGames/approve/{tradeId}").hasAnyAuthority("ROLE_CREW", "ROLE_ADMIN") // Use Case 10
+                        .requestMatchers(HttpMethod.PUT, this.baseUrl + "/scheduledGames/deny/{tradeId}").hasAnyAuthority("ROLE_CREW", "ROLE_ADMIN") // Use Case 10
+                        .requestMatchers(HttpMethod.GET, this.baseUrl + "/notifications/{userId}").hasAnyAuthority("ROLE_CREW", "ROLE_ADMIN") // Use Case 12
+                        .requestMatchers(HttpMethod.DELETE, this.baseUrl + "/notifications/{notificationId}").hasAnyAuthority("ROLE_CREW", "ROLE_ADMIN") // Use Case 13
+                        .requestMatchers(HttpMethod.GET, this.baseUrl + "/scheduledGames/get/{userId}").hasAnyAuthority("ROLE_CREW", "ROLE_ADMIN") // Use Case 4
                         .requestMatchers(HttpMethod.POST, this.baseUrl + "/auth/login").permitAll() // Use Case 14
 
                         // Admin Endpoints
@@ -83,13 +122,42 @@ public class SecurityConfiguration {
                 )
                 .headers(headers -> headers.frameOptions(Customizer.withDefaults()).disable())
                 .csrf(csrf -> csrf.disable())
-                .httpBasic(Customizer.withDefaults())
+                .httpBasic(httpBasic -> httpBasic.authenticationEntryPoint(this.customBasicAuthenticationEntryPoint))
+                .oauth2ResourceServer(oauth2ResourceServer -> oauth2ResourceServer.jwt(Customizer.withDefaults())
+                        .authenticationEntryPoint(this.customBearerTokenAuthenticationEntryPoint)
+                        .accessDeniedHandler(this.customBearerTokenAccessDeniedHandler))
+                .sessionManagement(sessionManagement -> sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .build();
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(12);
+    }
+
+    @Bean
+    public JwtEncoder jwtEncoder() {
+        JWK jwk = new RSAKey.Builder(this.publicKey).privateKey(this.privateKey).build();
+        JWKSource<SecurityContext> jwkSet = new ImmutableJWKSet<>(new JWKSet(jwk));
+        return new NimbusJwtEncoder(jwkSet);
+    }
+
+    @Bean
+    public JwtDecoder jwtDecoder() {
+        return NimbusJwtDecoder.withPublicKey(this.publicKey).build();
+    }
+
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtGrantedAuthoritiesConverter jwtGrantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
+
+        jwtGrantedAuthoritiesConverter.setAuthoritiesClaimName("authorities");
+        jwtGrantedAuthoritiesConverter.setAuthorityPrefix("");
+
+        JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
+        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwtGrantedAuthoritiesConverter);
+        return jwtAuthenticationConverter;
+
     }
 
 }

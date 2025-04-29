@@ -51,10 +51,10 @@ public class FrogCrewUserService implements UserDetailsService {
 
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        return this.frogCrewUserRepository.findByUsername(username)
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        return this.frogCrewUserRepository.findByEmail(email)
                 .map(user -> new MyUserPrincipal(user))
-                .orElseThrow(() -> new UsernameNotFoundException("username " + username + " is not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("email " + email + " is not found"));
     }
 
 }

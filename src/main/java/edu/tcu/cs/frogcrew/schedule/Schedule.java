@@ -17,14 +17,10 @@ public class Schedule {
 
     private String season;
 
+    boolean published = false;
+
     @OneToMany
     private List<Game> games = new ArrayList<>();
-
-    public void createSchedule() {}
-
-    public void viewSchedule() {}
-
-    public void publishSchedule() {}
 
 
     // GETTERS AND SETTERS
@@ -60,5 +56,13 @@ public class Schedule {
 
     public void setGames(List<Game> games) {
         this.games = games;
+    }
+
+    public boolean isPublished() {
+        return published;
+    }
+
+    public void setPublished(boolean published) {
+        this.published = published;
     }
 }

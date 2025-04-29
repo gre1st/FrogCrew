@@ -50,9 +50,15 @@ public class ScheduleService {
                 }).orElseThrow(() -> new ObjectNotFoundException("schedule", scheduleId));
     }
 
+    public void publishSchedule(Integer scheduleId) {
+        Schedule schedule = this.scheduleRepository.findById(scheduleId).orElseThrow(() -> new ObjectNotFoundException("schedule", scheduleId));
+        schedule.setPublished(true);
+        this.scheduleRepository.save(schedule);
+    }
+
     public List<String> getAllSports() {
         return this.scheduleRepository.findDistinctSports();
     }
 
-    // TODO: Publish a Schedule
+
 }

@@ -72,10 +72,10 @@ public class ScheduleController {
         return new Result(true, StatusCode.SUCCESS, "Find Success", foundScheduleDtos);
     }
 
-    // TODO: Finish the publishSchedule method
     @PutMapping("/publish/{scheduleId}")
-    public Result publishSchedule(@PathVariable Integer scheduleId, @Valid @RequestBody ScheduleDto scheduleDto) {
-        return null;
+    public Result publishSchedule(@PathVariable Integer scheduleId) {
+        this.scheduleService.publishSchedule(scheduleId);
+        return new Result(true, StatusCode.SUCCESS, "Publish Success", true);
     }
 
     @GetMapping("/sports")

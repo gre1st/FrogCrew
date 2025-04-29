@@ -17,8 +17,6 @@ public class FrogCrewUser implements Serializable {
     @Column(name = "user_id")
     private Integer userId;
 
-    String username;
-
     @NotEmpty(message = "email is required.")
     private String email;
 
@@ -31,6 +29,7 @@ public class FrogCrewUser implements Serializable {
 
     private String lastName;
 
+    @Enumerated(EnumType.STRING)
     @NotNull(message = "roles are required.")
     private Role role;
 
@@ -63,14 +62,6 @@ public class FrogCrewUser implements Serializable {
 
     public void setId(Integer id) {
         this.userId = id;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
     }
 
     public @NotEmpty(message = "email is required.") String getEmail() {

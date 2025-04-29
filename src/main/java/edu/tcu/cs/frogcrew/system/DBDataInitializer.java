@@ -31,13 +31,12 @@ public class DBDataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         FrogCrewUser u1 = new FrogCrewUser();
-        u1.setUsername("DNoall");
         u1.setPassword("password");
         u1.setFirstName("Dylan");
         u1.setLastName("Noall");
         u1.setEmail("dnoall@gmail.com");
         u1.setPhoneNumber("1234567890");
-        u1.setRole(Role.ADMIN);
+        u1.setRole(Role.CREW);
         u1.setEnabled(true);
         u1.setQualifiedPositions(List.of("Director"));
 
